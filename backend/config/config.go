@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"sync"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
-	"github.com/rs/zerolog/log"
 )
 
 type Config struct {
@@ -27,13 +27,17 @@ type Config struct {
 	DBUser               string        `validate:"required" koanf:"POSTGRES_USER"`
 	DBPassword           string        `validate:"required" koanf:"POSTGRES_PASSWORD"`
 	DBSource             string        `validate:"required" koanf:"DB_SOURCE"`
-	MigrationURL         string        `validate:"required" koanf:"MIGRATION_URL"`
 	SecretKey            string        `validate:"required" koanf:"SECRET_KEY"`
 	AccessTokenDuration  time.Duration `validate:"required" koanf:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `validate:"required" koanf:"REFRESH_TOKEN_DURATION"`
+	ESAddress            string        `validate:"required" koanf:"ES_ADDRESS"`
+	ESIndex              string        `validate:"required" koanf:"ES_INDEX"`
+	CorsOrigin           string        `validate:"required" koanf:"CORS_ORIGIN"`
+	TOKEN                string        `validate:"required" koanf:"TOKEN"`
+	MasterKey            string        `validate:"required" koanf:"MASTER_KEY"`
 }
 
-var configFile string = "dev.env"
+var configFile string = ".env.dev"
 
 var (
 	k        *koanf.Koanf
@@ -52,25 +56,25 @@ func GetConfig() *Config {
 		k = koanf.New(".")
 		validate := validator.New(validator.WithRequiredStructEnabled())
 
-		log.Info().Msg("loading config...")
+		log.Println("loading config...")
 
 		fileProvider := file.Provider(configFile)
 		envProvider := env.Provider("", ".", nil)
 
 		if err := k.Load(fileProvider, dotenv.Parser()); err != nil {
-			log.Info().Msgf("could not load config file: %s", err.Error())
+			log.Printf("could not load config file: %s", err.Error())
 		}
 
 		if err := k.Load(envProvider, nil); err != nil {
-			log.Info().Msgf("could not environment variables: %s", err.Error())
+			log.Printf("could not environment variables: %s", err.Error())
 		}
 
-		if err := k.Unmarshal("", instance); err != nil {
-			log.Panic().Err(err).Msg("error unmarshing config")
+		if err := k.Unmarshal("", &instance); err != nil {
+			log.Panicf("error unmarshing config %v", err)
 		}
 
 		if err := validate.Struct(instance); err != nil {
-			log.Panic().Err(err).Msg("correct configs were not loaded")
+			log.Panicf("correct configs were not loaded %v", err)
 		}
 
 	})

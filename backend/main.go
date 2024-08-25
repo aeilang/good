@@ -3,39 +3,60 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log"
+
 	"net/http"
 	"time"
 
-	"github.com/aeilang/backend/internal/server"
+	"github.com/aeilang/backend/config"
+	"github.com/aeilang/backend/internal/handler/v1"
+	"github.com/aeilang/backend/internal/service"
+	"github.com/aeilang/backend/internal/store/jobStore"
+	"github.com/aeilang/backend/logger"
+	"github.com/aeilang/backend/middleware"
 	_ "github.com/lib/pq"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	connStr := "postgres://lang:password@localhost:5432/test_db?sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	logger.StartLogger()
+	cfg := config.GetConfig()
+
+	// 连接postgres数据库
+	db, err := sql.Open("postgres", cfg.DBSource)
 	if err != nil || db.Ping() != nil {
-		panic("db connecting failed!")
+		log.Fatal().Caller().Err(err).Msg("db connecting failed!")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// 初始化Prepare
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	queries, err := store.Prepare(ctx, db)
+	jobQuery, err := jobStore.Prepare(ctx, db)
+
 	if err != nil {
-		panic("create queries failed")
+		log.Fatal().Caller().Err(err).Msg("create queries failed")
 	}
 
-	serv := server.New(queries)
+	server := service.NewJobService(jobQuery)
 
-	r := http.NewServeMux()
-	r.HandleFunc("GET /users", serv.HandleGetUsers)
-	r.HandleFunc("GET /user/{id}", serv.HandleGetUser)
-	r.HandleFunc("DELETE /user/{id}", serv.HandleDeleteUser)
-	r.HandleFunc("POST /user", serv.HandleCreateUser)
-	r.HandleFunc("PUT /user", serv.HandleUpdateUser)
+	jobHandler := handler.NewJobHandler(server)
 
-	log.Println("listen to port 8888")
-	if err := http.ListenAndServe(":8888", r); err != nil {
-		log.Println(err)
+	mux := http.NewServeMux()
+	jobHandler.Register(mux)
+
+	srv := http.Server{
+		Addr:    cfg.HTTPServerAddress,
+		Handler: chain(mux, middleware.TimeOut(cfg.HTTPTimeOut), middleware.Logger, middleware.CORS),
 	}
+
+	log.Info().Msgf("listen to port %s", srv.Addr)
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal().Caller().Err(err).Msg("listen procese failed")
+	}
+}
+
+func chain(mux http.Handler, fns ...func(http.Handler) http.Handler) http.Handler {
+	for _, fn := range fns {
+		mux = fn(mux)
+	}
+	return mux
 }

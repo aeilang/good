@@ -22,7 +22,7 @@ func ReqeustID(next http.Handler) http.Handler {
 
 func GetRequestID(ctx context.Context) string {
 	reqeustID, ok := ctx.Value(reqeustIDKey{}).(string)
-	if !ok {
+	if ok {
 		return reqeustID
 	}
 

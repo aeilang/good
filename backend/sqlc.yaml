@@ -1,12 +1,12 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    queries: "db/query/user.sql"
-    schema: "db/migration/"
+    queries: "db/query/jobs.sql"
+    schema: "db/migrations/"
     gen:
       go:
-        package: "userstore"
-        out: "internal/store/userstore"
+        package: "jobStore"
+        out: "internal/store/jobStore"
         sql_package: "database/sql"
         emit_db_tags: true
         emit_prepared_queries: true
@@ -15,12 +15,26 @@ sql:
         omit_unused_structs: true
 
   - engine: "postgresql"
-    queries: "db/query/sad.sql"
-    schema: "db/migration/"
+    queries: "db/query/users.sql"
+    schema: "db/migrations/"
     gen:
       go:
-        package: "sadstore"
-        out: "internal/store/sadstore"
+        package: "userStore"
+        out: "internal/store/userStore"
+        sql_package: "database/sql"
+        emit_db_tags: true
+        emit_prepared_queries: true
+        emit_interface: true
+        emit_json_tags: true
+        omit_unused_structs: true
+
+  - engine: "postgresql"
+    queries: "db/query/permission.sql"
+    schema: "db/migrations/"
+    gen:
+      go:
+        package: "permissionStore"
+        out: "internal/store/permissionStore"
         sql_package: "database/sql"
         emit_db_tags: true
         emit_prepared_queries: true

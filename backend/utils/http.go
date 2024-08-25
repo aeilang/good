@@ -5,23 +5,23 @@ import (
 	"net/http"
 )
 
-// 响应状态码, 以JSON格式返回数据v
-func WriteJSON[T any](w http.ResponseWriter, status int, v T) error {
-	w.WriteHeader(status)
+func WriteJSON(w http.ResponseWriter, status int, v any) error {
 	w.Header().Set("Content-Type", "application/json")
-
+	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
 }
 
-// 从请求中获取payload
+func WriteError(w http.ResponseWriter, status int, err error) error {
+	return WriteJSON(w, status, map[string]string{
+		"error": err.Error(),
+	})
+}
+
 func DecodeFromRequst[T any](r *http.Request) (T, error) {
 	var v T
-
 	err := json.NewDecoder(r.Body).Decode(&v)
 
 	return v, err
 }
 
-type Message struct {
-	Message string `json:"message"`
-}
+
